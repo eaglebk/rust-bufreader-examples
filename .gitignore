@@ -1,0 +1,4 @@
+/target
+sample_data.txt
+*.txt
+.DS_Store

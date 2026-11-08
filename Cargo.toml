@@ -1,0 +1,15 @@
+[package]
+name = "rust-bufreader-examples"
+version = "0.1.0"
+edition = "2021"
+authors = ["Konstantin (@eaglebk)"]
+description = "Примеры к выпуску 1 подкаста «Rust в деталях»: BufReader, Read и оптимизация ввода-вывода"
+license = "MIT"
+
+[dependencies]
+# Только стандартная библиотека Rust (std::io, std::time) — нулевые зависимости!
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
