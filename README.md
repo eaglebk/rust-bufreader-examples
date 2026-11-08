@@ -1,98 +1,102 @@
 <p align="center">
-  <img src="assets/logo.svg" alt="BufReader in Rust — Примеры к подкасту" width="600" />
+  <img src="assets/logo.svg" alt="BufReader in Rust — Podcast Companion Examples" width="600" />
 </p>
 
-# 🦀 BufReader в Rust — примеры к подкасту «Rust в деталях» (Выпуск 1)
+<p align="center">
+  <b>🇬🇧 English</b> | <a href="README.ru.md">🇷🇺 Русский</a>
+</p>
 
-Этот репозиторий — практическое приложение к первому выпуску инженерного подкаста **«Rust в деталях»**.  
-Здесь собраны запускаемые примеры кода, демонстрирующие разницу между прямыми системными вызовами и буферизованным вводом-выводом в Rust.
+# 🦀 BufReader in Rust — Podcast Companion Examples (Episode 1)
 
----
-
-## 🎙 Подкаст и статья
-
-* 🎧 **Слушать подкаст на YouTube:** [Выпуск 1 — BufReader | Как ускорить чтение файлов и потоков](https://www.youtube.com/watch?v=gATf436M6ow)
-* 📖 **Читать подробный разбор в блоге:** [BufReader в Rust: ускоряем ввод-вывод на eagle2000.space](https://eagle2000.space/rust/bufreader/)
+This repository is the practical code companion for Episode 1 of the engineering podcast series **«Rust in Details»** (*«Rust в деталях»*).  
+Here you will find runnable benchmarks and minimal, clear examples demonstrating the massive performance difference between raw operating system syscalls and buffered I/O in Rust.
 
 ---
 
-## 💡 В чем идея: аналогии из подкаста
+## 🎙 Podcast & Blog Article
 
-Любое чтение данных (с диска, из сокета или терминала) в операционной системе происходит через **системные вызовы** (syscalls, например `read(2)`). Каждый такой вызов требует переключения контекста процессора из пространства пользователя (*user mode*) в ядро (*kernel mode*) и обратно.
-
-* 🚰 **Чтение по 1 байту (без буфера):**  
-  Это как если бы дома не было водопровода, и за каждым глотком воды приходилось бегать на улицу к колонке. Сам процесс несложный, но через 100 походов сил и времени ни на что не останется.
-* 🏺 **Чтение всего файла разом в память:**  
-  Это как притащить домой здоровенную 20-литровую канистру. Быстро, но таскать неудобно, а если файл весит 10 ГБ — память просто закончится (*Out Of Memory*).
-* ☕ **BufReader:**  
-  Это кружка нормального размера. Он один раз считывает приличный кусок (по умолчанию **8 КБ / 8192 байта**) во внутренний буфер в оперативной памяти, а дальше ваша программа берёт байты прямо из памяти. Вместо 8 000 000 системных вызовов остаётся всего ~1 000!
+* 🎧 **Listen on YouTube:** [Episode 1 — BufReader \| How to accelerate file & stream reading](https://www.youtube.com/watch?v=gATf436M6ow)
+* 📖 **Read the deep-dive article:** [BufReader in Rust: Accelerating I/O on eagle2000.space](https://eagle2000.space/en/rust/bufreader/) *(or in [Russian](https://eagle2000.space/rust/bufreader/))*
 
 ---
 
-## 📂 Что внутри `src/bin`
+## 💡 The Core Idea: Real-World Analogies
 
-| Файл | Описание подхода | Особенность |
+Whenever an application reads data (from an SSD, a network socket, or standard input), the OS handles the request through **system calls** (syscalls like `read(2)` on Unix/Linux/macOS). Every single syscall requires the CPU to switch context from user mode to kernel mode and back again — hundreds of CPU cycles for just one operation.
+
+* 🚰 **Reading 1 byte at a time (unbuffered `Read`):**  
+  Imagine having no plumbing at home. Every time you want a sip of water, you have to walk outside down the street to the water pump. Running the task is simple, but doing it 8 million times a day will leave you exhausted with zero energy for anything else.
+* 🏺 **Reading the entire file into memory at once:**  
+  This is like hauling a massive 20-liter water jug home. It's fast, but heavy to carry around, and if the file is 10 GB, your system crashes with an Out Of Memory (*OOM*) panic.
+* ☕ **`BufReader`:**  
+  This is a regular coffee mug. It fetches a sensible chunk of water from the pump once (**8 KB / 8192 bytes** by default) and stores it in your application's RAM buffer. Your code drinks comfortably from the mug. Instead of 8,000,000 expensive OS round-trips, you make only ~1,000!
+
+---
+
+## 📂 What's Inside `src/bin`
+
+| Binary | Approach | Notes |
 | :--- | :--- | :--- |
-| **`01_unbuffered_read.rs`** | Прямое чтение по 1 байту через `Read` | Катастрофически медленно (~8-10 секунд на 8 МБ) |
-| **`02_bufreader_lines.rs`** | Стандартный `BufReader + .lines()` | Быстро и удобно (~10 мс), на каждой строке выделяет новую `String` |
-| **`03_bufreader_reuse_buffer.rs`** | `BufReader + .read_line(&mut line)` | Ещё быстрее (~6-8 мс), повторно использует буфер строки (0 аллокаций) |
-| **`04_read_entire_file.rs`** | Чтение всего файла в `fs::read_to_string` | Рекордная скорость (~2 мс), но требует RAM под весь файл |
-| **`05_benchmark_comparison.rs`** | **Сводный бенчмарк всех 4 методов** | Автоматически запускает замеры и рисует наглядную сравнительную таблицу |
+| **`01_unbuffered_read.rs`** | Raw 1-byte reading with `std::io::Read` | Extremely slow (~8–10s on an 8 MB file due to millions of syscalls) |
+| **`02_bufreader_lines.rs`** | Standard `BufReader::new(file).lines()` | Idiomatic and fast (~10ms), allocates a new `String` per line |
+| **`03_bufreader_reuse_buffer.rs`** | `BufReader + .read_line(&mut line)` | Even faster (~6–8ms), reuses a single `String` buffer (**0 heap allocations**) |
+| **`04_read_entire_file.rs`** | `fs::read_to_string` | Record speed (~2ms), but requires allocating RAM equal to file size |
+| **`05_benchmark_comparison.rs`** | **All-in-one comparative benchmark** | Runs all 4 approaches sequentially and prints a formatted benchmark table |
 
 ---
 
-## 📊 Результаты замеров (тестовый файл 8 МБ, 100 000 строк)
+## 📊 Benchmark Results (8 MB Sample File, 100,000 Lines)
 
-Замеры в релизном профиле (`--release`):
+Measured in release mode (`cargo run --release`):
 
-| Метод чтения | Время | Системные вызовы (Syscalls) | Нагрузка на память |
+| Approach | Execution Time | OS Syscalls | Memory Footprint |
 | :--- | :--- | :--- | :--- |
-| **1. Побайтово без буфера (`Read`)** | ~9.84 с | ~8 000 000 syscalls | Минимальная |
-| **2. `BufReader + .lines()`** | ~10.4 мс | ~1 000 syscalls | 8 КБ буфер + аллокации строк |
-| **3. `BufReader + reuse String`** | **~7.1 мс** | ~1 000 syscalls | **8 КБ буфер, 0 аллокаций** 🏆 |
-| **4. Весь файл в память (`read_to_string`)** | ~2.1 мс | 1 syscall | 8 МБ сразу в RAM |
+| **1. Unbuffered byte-by-byte (`Read`)** | ~9.84 s | ~8,000,000 syscalls | Minimal |
+| **2. `BufReader + .lines()`** | ~10.4 ms | ~1,000 syscalls | 8 KB buffer + per-line strings |
+| **3. `BufReader + reuse String`** | **~7.1 ms** | ~1,000 syscalls | **8 KB buffer, 0 allocations** 🏆 |
+| **4. Entire file into memory (`read_to_string`)** | ~2.1 ms | 1 syscall | 8 MB allocated in RAM |
 
-> **Вывод:** `BufReader` с переиспользованием строки даёт ускорение более чем в **1000 раз**, сохраняя строгий контроль над памятью.
-
----
-
-## ⚠️ Когда `BufReader` лишний?
-
-1. **Данные уже в оперативной памяти:** (`&[u8]`, `Vec<u8>`, `Cursor`, `String`) — системных вызовов и так нет, дополнительный буфер только создаст накладные расходы.
-2. **Чтение сразу большими блоками:** если вы и так читаете кусками по 64 КБ или 1 МБ, накладные расходы на системные вызовы пренебрежимо малы.
-3. **Десятки тысяч одновременных сетевых соединений:** каждый `BufReader` держит буфер в 8 КБ. На 20 000 сокетов это ~160 МБ оперативной памяти только под буферы чтения.
+> **Takeaway:** `BufReader` with string reuse delivers a **>1000x speedup** compared to raw unbuffered reads, all while keeping memory consumption constant and strictly bounded.
 
 ---
 
-## 🚀 Быстрый старт
+## ⚠️ When is `BufReader` Redundant?
+
+1. **The data is already in RAM:** (`&[u8]`, `Vec<u8>`, `Cursor`, `String`) — no OS syscalls occur anyway; an extra wrapper buffer only adds overhead.
+2. **Reading in large chunks:** if your application already reads 64 KB or 1 MB blocks at a time, syscall overhead is negligible.
+3. **Tens of thousands of concurrent connections:** each `BufReader` allocates an 8 KB internal buffer. For 20,000 concurrent network sockets, that equals ~160 MB of memory just for read buffers.
+
+---
+
+## 🚀 Quick Start
 
 ```bash
-# Клонирование репозитория
+# Clone the repository
 git clone https://github.com/eaglebk/rust-bufreader-examples.git
 cd rust-bufreader-examples
 
-# Запуск единого интерактивного бенчмарка
+# Run the complete comparative benchmark
 cargo run --release --bin 05_benchmark_comparison
 
-# Запуск любого отдельного примера:
+# Or run individual examples:
 cargo run --release --bin 02_bufreader_lines
 cargo run --release --bin 03_bufreader_reuse_buffer
 ```
 
-> **Примечание:** Тестовый файл `sample_data.txt` на ~8 МБ будет автоматически сгенерирован при первом запуске любого примера.
+> **Note:** A realistic ~8 MB text file (`sample_data.txt`) will be automatically generated on the first run.
 
 ---
 
-## 🔗 Полезные ссылки
+## 🔗 Useful Links
 
-* 📖 Документация [`std::io::BufReader`](https://doc.rust-lang.org/std/io/struct.BufReader.html)
-* 📖 Документация [`std::io::BufRead`](https://doc.rust-lang.org/std/io/trait.BufRead.html)
-* ✈️ Telegram-канал **[«Маяк Программиста»](https://t.me/prog_lighthouse)** — системное программирование, алгоритмы и новости IT
-* 🌐 Блог **[eagle2000.space](https://eagle2000.space/)** — интерактивные руководства по Rust, мобильной разработке и фотографии
-* 📺 YouTube-канал **[«Маяк Программиста»](https://www.youtube.com/@prog_lighthouse)**
+* 📖 Rust Docs: [`std::io::BufReader`](https://doc.rust-lang.org/std/io/struct.BufReader.html)
+* 📖 Rust Docs: [`std::io::BufRead`](https://doc.rust-lang.org/std/io/trait.BufRead.html)
+* 🌐 Blog: **[eagle2000.space](https://eagle2000.space/en/)** — interactive tutorials on Rust, mobile engineering, and visual arts
+* ✈️ Telegram: **[@prog_lighthouse](https://t.me/prog_lighthouse)** — «Маяк Программиста» `[RU]`
+* 📺 YouTube: **[@prog_lighthouse](https://www.youtube.com/@prog_lighthouse)** — Programmer's Lighthouse `[RU]`
 
 ---
 
-## 📄 Лицензия
+## 📄 License
 
 MIT © Konstantin ([@eaglebk](https://github.com/eaglebk))
